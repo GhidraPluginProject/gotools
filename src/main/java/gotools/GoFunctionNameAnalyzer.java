@@ -49,8 +49,22 @@ public class GoFunctionNameAnalyzer extends AnalyzerBase {
   private void recoverGoFunctions(Program p, TaskMonitor m, MessageLog log, MemoryBlock gopc)
       throws MemoryAccessException {
     long pointerSize = 8;
+    Address a = gopc.getStart();
+    int goVersionMagic = p.getMemory().getInt(a);
+    a.add(8);
+    // https://github.com/golang/go/blob/release-branch.go1.16/src/debug/gosym/pclntab.go#L169
+    if (goVersionMagic == 0xfffffffb) {
+      getInformation12(p, m, log, a, pointerSize);
+    }
+    else {
+      getInformation116(p, m, log, a, pointerSize);
+    }
+  }
+    }
     // TODO this only works for 64bit binaries
-    Address a = gopc.getStart().add(8); // skip unimportant header
+  }
+  private void getInformation12(Program p, TaskMonitor m, MessageLog log, MemoryBlock gopc, Address a, long pointerSize){
+     // skip unimportant header
     long size = p.getMemory().getLong(a);
     a = a.add(pointerSize);
     for (int i = 0; i < size; i++) {
@@ -99,4 +113,5 @@ public class GoFunctionNameAnalyzer extends AnalyzerBase {
       }
     }
   }
+  private void getInformation116(){}
 }
