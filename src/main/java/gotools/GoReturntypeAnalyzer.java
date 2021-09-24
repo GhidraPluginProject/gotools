@@ -298,6 +298,7 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
                   short[] funcArgmentAndReturn = setFuncType(typeAddress, flatapi, pointerSize);
                   p.getListing().setComment(typeAddress, CodeUnit.EOL_COMMENT,
                       "in:" + funcArgmentAndReturn[0] + " out:" + funcArgmentAndReturn[1]);
+                  break;
                 case "Interface":
                   setInterfaceType(typeAddress, flatapi, pointerSize);
                   break;
