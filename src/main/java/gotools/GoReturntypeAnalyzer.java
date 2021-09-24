@@ -73,8 +73,7 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
       // return;
     }
     try {
-      f.setCallingConvention("go__stdcall");
-      // f.setCallingConvention("unknown");
+      f.setCallingConvention("unknown");
     } catch (InvalidInputException e) {
       log.appendException(e);
     }
