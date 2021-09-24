@@ -23,13 +23,20 @@ import ghidra.program.model.address.AddressSetView;
 import ghidra.program.model.data.BooleanDataType;
 import ghidra.program.model.data.ByteDataType;
 import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.DoubleComplexDataType;
+import ghidra.program.model.data.DoubleDataType;
+import ghidra.program.model.data.FloatComplexDataType;
+import ghidra.program.model.data.FloatDataType;
 import ghidra.program.model.data.IntegerDataType;
 import ghidra.program.model.data.LongDataType;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.ShortDataType;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.Undefined8DataType;
+import ghidra.program.model.data.UnsignedCharDataType;
+import ghidra.program.model.data.UnsignedIntegerDataType;
 import ghidra.program.model.data.UnsignedLongDataType;
+import ghidra.program.model.data.UnsignedShortDataType;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Parameter;
@@ -234,8 +241,57 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
               String kind = TYPE_KINDS[idx];
               typelinkAddr = typelinkAddr.add(4);
               switch (kind) {
+                case "Bool":
+                  flatapi.createData(typelinkAddr, new BooleanDataType());
+                  break;
+                case "Int":
+                  flatapi.createData(typelinkAddr, new IntegerDataType());
+                  break;
+                case "Int8":
+                  flatapi.createData(typelinkAddr, new ByteDataType());
+                  break;
+                case "Int16":
+                  flatapi.createData(typelinkAddr, new ShortDataType());
+                  break;
+                case "Int32":
+                  flatapi.createData(typelinkAddr, new IntegerDataType());
+                  break;
+                case "Int64":
+                  flatapi.createData(typelinkAddr, new LongDataType());
+                  break;
+                case "Uint":
+                  flatapi.createData(typelinkAddr, new UnsignedIntegerDataType());
+                  break;
+                case "Uint8":
+                  flatapi.createData(typelinkAddr, new UnsignedCharDataType());
+                  break;
+                case "Uint16":
+                  flatapi.createData(typelinkAddr, new UnsignedShortDataType());
+                  break;
+                case "Uint32":
+                  flatapi.createData(typelinkAddr, new UnsignedIntegerDataType());
+                  break;
+                case "Uint64":
+                  flatapi.createData(typelinkAddr, new UnsignedLongDataType());
+                  break;
+                case "Uintptr": // TODO: only 64bit
+                  flatapi.createData(typelinkAddr, new UnsignedLongDataType());
+                  break;
+                case "Float32":
+                  flatapi.createData(typelinkAddr, new FloatDataType());
+                  break;
+                case "Float64":
+                  flatapi.createData(typelinkAddr, new DoubleDataType());
+                  break;
+                case "Complex64":
+                  flatapi.createData(typelinkAddr, new FloatComplexDataType());
+                  break;
+                case "Complex128":
+                  flatapi.createData(typelinkAddr, new DoubleComplexDataType());
+                  break;
                 case "Array":
-                  long[] funcArgmentAndReturn = setArrayType(typeAddress, flatapi, pointerSize);
+                  setArrayType(typeAddress, flatapi, pointerSize);
+                  break;
                 case "Func":
                   short[] funcArgmentAndReturn = setFuncType(typeAddress, flatapi, pointerSize);
                   p.getListing().setComment(typeAddress, CodeUnit.EOL_COMMENT,
