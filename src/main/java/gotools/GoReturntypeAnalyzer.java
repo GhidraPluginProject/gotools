@@ -233,11 +233,18 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
               }
               String kind = TYPE_KINDS[idx];
               typelinkAddr = typelinkAddr.add(4);
-              if (kind == "Func") { // TODO other types
-                short[] funcArgmentAndReturn = setFuncType(typeAddress, flatapi, pointerSize);
-                p.getListing().setComment(typeAddress, CodeUnit.EOL_COMMENT,
-                    "in:" + funcArgmentAndReturn[0] + " out:" + funcArgmentAndReturn[1]);
-              }
+              switch (kind) {
+                case "Array":
+                  long[] funcArgmentAndReturn = setArrayType(typeAddress, flatapi, pointerSize);
+                case "Func":
+                  short[] funcArgmentAndReturn = setFuncType(typeAddress, flatapi, pointerSize);
+                  p.getListing().setComment(typeAddress, CodeUnit.EOL_COMMENT,
+                      "in:" + funcArgmentAndReturn[0] + " out:" + funcArgmentAndReturn[1]);
+
+                default:
+                  break;
+              }// TODO other types
+
             } catch (Exception e) {
               log.appendException(e);
             }
@@ -251,6 +258,30 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
     } catch (Exception e) {
       log.appendException(e);
     }
+  }
+
+  /*
+  @formatter:off
+  type arrayType struct {
+    rtype
+    elem  *rtype // array element type
+    slice *rtype // slice type
+    len   uintptr
+  }
+  @formatter:on
+  */
+  private long[] setArrayType(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+    flatapi.clearListing(a);
+    long[] ret = new long[3];
+    Data data = flatapi.createData(a, new PointerDataType());
+    ret[0] = ((Address) data.getValue()).getOffset();
+    a.add(pointerSize);
+    data = flatapi.createData(a, new PointerDataType());
+    ret[1] = ((Address) data.getValue()).getOffset();
+    a.add(pointerSize);
+    data = flatapi.createData(a, new LongDataType());
+    ret[2] = ((Scalar) data.getValue()).getValue();
+    return ret;
   }
 
   /*

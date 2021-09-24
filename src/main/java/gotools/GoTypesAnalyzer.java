@@ -15,13 +15,12 @@ import ghidra.util.task.TaskMonitor;
 
 public class GoTypesAnalyzer extends AnalyzerBase {
   public GoTypesAnalyzer() {
-    super("Go Types Analyzer", "Analyzes Types like string and slices",
-        AnalyzerType.FUNCTION_ANALYZER);
+    super("Go Types Analyzer", "Analyzes Types like string and slices", AnalyzerType.FUNCTION_ANALYZER);
   }
 
   @Override
-  public boolean added(Program program, AddressSetView addressSetView, TaskMonitor taskMonitor,
-      MessageLog messageLog) throws CancelledException {
+  public boolean added(Program program, AddressSetView addressSetView, TaskMonitor taskMonitor, MessageLog messageLog)
+      throws CancelledException {
     StructureDataType s = new StructureDataType("GoString", 0);
     s.add(new QWordDataType(), "len", null);
     s.add(new Pointer64DataType(new CharDataType()), "str", null);
