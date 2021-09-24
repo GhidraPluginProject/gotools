@@ -60,11 +60,11 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
 
   private void detectReturnTypes(Program p, TaskMonitor m, MessageLog log) {
     for (Function f : p.getFunctionManager().getFunctionsNoStubs(true)) {
-      detectReturnTypes(p, m, log, f);
+      detectReturnTypes116(p, m, log, f);
     }
   }
 
-  private void detectReturnTypes(Program p, TaskMonitor m, MessageLog log, Function f) {
+  private void detectReturnTypes116(Program p, TaskMonitor m, MessageLog log, Function f) {
     int maxOffset = 0;
     int maxWrite = 0;
     int minWrite = Integer.MAX_VALUE;
