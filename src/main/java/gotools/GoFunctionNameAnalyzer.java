@@ -110,7 +110,6 @@ public class GoFunctionNameAnalyzer extends AnalyzerBase {
       }
       try {
         f.setName(functionName, SourceType.ANALYSIS);
-        p.getListing().setComment(funcPointer, CodeUnit.EOL_COMMENT, "from gotool");
       } catch (DuplicateNameException | InvalidInputException e) {
         log.appendException(e);
         continue;
