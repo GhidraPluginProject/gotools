@@ -55,8 +55,6 @@ import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
 import ghidra.program.flatapi.FlatProgramAPI;
-
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Vector;
 
@@ -240,63 +238,90 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
               }
               String kind = TYPE_KINDS[idx];
               typelinkAddr = typelinkAddr.add(4);
+              p.getListing().setComment(typeAddress, CodeUnit.EOL_COMMENT, "kind: " + kind);
               switch (kind) {
                 case "Bool":
-                  flatapi.createData(typelinkAddr, new BooleanDataType());
+                  flatapi.createData(typeAddress, new BooleanDataType());
                   break;
                 case "Int":
-                  flatapi.createData(typelinkAddr, new IntegerDataType());
+                  flatapi.createData(typeAddress, new IntegerDataType());
                   break;
                 case "Int8":
-                  flatapi.createData(typelinkAddr, new ByteDataType());
+                  flatapi.createData(typeAddress, new ByteDataType());
                   break;
                 case "Int16":
-                  flatapi.createData(typelinkAddr, new ShortDataType());
+                  flatapi.createData(typeAddress, new ShortDataType());
                   break;
                 case "Int32":
-                  flatapi.createData(typelinkAddr, new IntegerDataType());
+                  flatapi.createData(typeAddress, new IntegerDataType());
                   break;
                 case "Int64":
-                  flatapi.createData(typelinkAddr, new LongDataType());
+                  flatapi.createData(typeAddress, new LongDataType());
                   break;
                 case "Uint":
-                  flatapi.createData(typelinkAddr, new UnsignedIntegerDataType());
+                  flatapi.createData(typeAddress, new UnsignedIntegerDataType());
                   break;
                 case "Uint8":
-                  flatapi.createData(typelinkAddr, new UnsignedCharDataType());
+                  flatapi.createData(typeAddress, new UnsignedCharDataType());
                   break;
                 case "Uint16":
-                  flatapi.createData(typelinkAddr, new UnsignedShortDataType());
+                  flatapi.createData(typeAddress, new UnsignedShortDataType());
                   break;
                 case "Uint32":
-                  flatapi.createData(typelinkAddr, new UnsignedIntegerDataType());
+                  flatapi.createData(typeAddress, new UnsignedIntegerDataType());
                   break;
                 case "Uint64":
-                  flatapi.createData(typelinkAddr, new UnsignedLongDataType());
+                  flatapi.createData(typeAddress, new UnsignedLongDataType());
                   break;
                 case "Uintptr": // TODO: only 64bit
-                  flatapi.createData(typelinkAddr, new UnsignedLongDataType());
+                  flatapi.createData(typeAddress, new UnsignedLongDataType());
                   break;
                 case "Float32":
-                  flatapi.createData(typelinkAddr, new FloatDataType());
+                  flatapi.createData(typeAddress, new FloatDataType());
                   break;
                 case "Float64":
-                  flatapi.createData(typelinkAddr, new DoubleDataType());
+                  flatapi.createData(typeAddress, new DoubleDataType());
                   break;
                 case "Complex64":
-                  flatapi.createData(typelinkAddr, new FloatComplexDataType());
+                  flatapi.createData(typeAddress, new FloatComplexDataType());
                   break;
                 case "Complex128":
-                  flatapi.createData(typelinkAddr, new DoubleComplexDataType());
+                  flatapi.createData(typeAddress, new DoubleComplexDataType());
                   break;
                 case "Array":
                   setArrayType(typeAddress, flatapi, pointerSize);
+                  break;
+                case "Chan":
+                  setChanType(typeAddress, flatapi, pointerSize);
                   break;
                 case "Func":
                   short[] funcArgmentAndReturn = setFuncType(typeAddress, flatapi, pointerSize);
                   p.getListing().setComment(typeAddress, CodeUnit.EOL_COMMENT,
                       "in:" + funcArgmentAndReturn[0] + " out:" + funcArgmentAndReturn[1]);
-
+                case "Interface":
+                  setInterfaceType(typeAddress, flatapi, pointerSize);
+                  break;
+                case "Map":
+                  setMapType(typeAddress, flatapi, pointerSize);
+                  break;
+                case "Ptr":
+                  setPtrType(typeAddress, flatapi, pointerSize);
+                  break;
+                case "Slice":
+                  setSliceType(typeAddress, flatapi, pointerSize);
+                  break;
+                case "String":
+                  flatapi.clearListing(typeAddress);
+                  flatapi.createData(typeAddress, new PointerDataType());
+                  typeAddress = typeAddress.add(pointerSize);
+                  flatapi.clearListing(typeAddress);
+                  flatapi.createData(typeAddress, new IntegerDataType());
+                  break;
+                case "Struct":
+                  setStructType(typeAddress, flatapi, pointerSize);
+                  break;
+                case "UnsafePointer":
+                  flatapi.createData(typeAddress, new PointerDataType());
                 default:
                   break;
               }// TODO other types
@@ -331,12 +356,35 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
     long[] ret = new long[3];
     Data data = flatapi.createData(a, new PointerDataType());
     ret[0] = ((Address) data.getValue()).getOffset();
-    a.add(pointerSize);
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
     data = flatapi.createData(a, new PointerDataType());
     ret[1] = ((Address) data.getValue()).getOffset();
-    a.add(pointerSize);
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
     data = flatapi.createData(a, new LongDataType());
     ret[2] = ((Scalar) data.getValue()).getValue();
+    return ret;
+  }
+
+  /*
+  @formatter:off
+  type chanType struct {
+    rtype
+    elem *rtype  // channel element type
+    dir  uintptr // channel direction (ChanDir)
+  }
+  @formatter:on
+  */
+  private long[] setChanType(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+    flatapi.clearListing(a);
+    long[] ret = new long[3];
+    Data data = flatapi.createData(a, new PointerDataType());
+    ret[0] = ((Address) data.getValue()).getOffset();
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
+    data = flatapi.createData(a, new PointerDataType());
+    ret[2] = ((Address) data.getValue()).getOffset();
     return ret;
   }
 
@@ -363,6 +411,168 @@ public class GoReturntypeAnalyzer extends AnalyzerBase {
     short[] ret = new short[2];
     ret[0] = inCount;
     ret[1] = outCount;
+    return ret;
+  }
+
+  /*
+  @formatter:off
+  type imethod struct {
+    name nameOff // name of method
+    typ  typeOff // .(*FuncType) underneath
+  }
+  
+  */
+  // private long[] setIMethod(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+  //   flatapi.clearListing(a);
+  //   long[] ret = new long[2];
+  //   Data data = flatapi.createData(a, new ShortDataType());
+  //   ret[0] = ((Scalar) data.getValue()).getValue();
+  //   a = a.add(pointerSize);
+  //   data = flatapi.createData(a, new ShortDataType());
+  //   ret[1] = ((Scalar) data.getValue()).getValue();
+  //   return ret;
+  // }
+  // @formatter:on
+
+  /*
+  @formatter:off
+  type interfaceType struct {
+    rtype
+    pkgPath name      // import path
+    methods []imethod // sorted by hash
+  }
+  @formatter:on
+  */
+  private long[] setInterfaceType(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+    flatapi.clearListing(a);
+    long[] ret = new long[2];
+    Data data = flatapi.createData(a, new PointerDataType());
+    ret[0] = ((Address) data.getValue()).getOffset();
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
+    data = flatapi.createData(a, new PointerDataType());
+    ret[1] = ((Address) data.getValue()).getOffset();
+    return ret;
+  }
+
+  /*
+  @formatter:off
+  type mapType struct {
+    rtype
+    key    *rtype // map key type
+    elem   *rtype // map element (value) type
+    bucket *rtype // internal bucket structure
+    // function for hashing keys (ptr to key, seed) -> hash
+    hasher     func(unsafe.Pointer, uintptr) uintptr
+    keysize    uint8  // size of key slot
+    valuesize  uint8  // size of value slot
+    bucketsize uint16 // size of bucket
+    flags      uint32
+  }
+  @formatter:on
+  */
+  private long[] setMapType(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+    flatapi.clearListing(a);
+    long[] ret = new long[3];
+    Data data = flatapi.createData(a, new PointerDataType());
+    ret[0] = ((Address) data.getValue()).getOffset();
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
+    data = flatapi.createData(a, new PointerDataType());
+    ret[1] = ((Address) data.getValue()).getOffset();
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
+    data = flatapi.createData(a, new PointerDataType());
+    ret[2] = ((Address) data.getValue()).getOffset();
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
+    flatapi.createData(a, new LongDataType());
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
+    flatapi.createData(a, new ByteDataType());
+    a = a.add(1);
+    flatapi.clearListing(a);
+    flatapi.createData(a, new ByteDataType());
+    a = a.add(1);
+    flatapi.clearListing(a);
+    flatapi.createData(a, new ShortDataType());
+    a = a.add(2);
+    flatapi.clearListing(a);
+    flatapi.createData(a, new IntegerDataType());
+    a = a.add(4);
+    return ret;
+  }
+
+  /*
+  @formatter:off
+  type ptrType struct {
+    rtype
+    elem *rtype // pointer element (pointed at) type
+  }
+  @formatter:on
+  */
+  private long[] setPtrType(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+    flatapi.clearListing(a);
+    long[] ret = new long[1];
+    Data data = flatapi.createData(a, new PointerDataType());
+    ret[0] = ((Address) data.getValue()).getOffset();
+    return ret;
+  }
+
+  /*
+  @formatter:off
+  type sliceType struct {
+    rtype
+    elem *rtype // slice element type
+  }
+  @formatter:on
+  */
+  private long[] setSliceType(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+    flatapi.clearListing(a);
+    long[] ret = new long[1];
+    Data data = flatapi.createData(a, new PointerDataType());
+    ret[0] = ((Address) data.getValue()).getOffset();
+    return ret;
+  }
+
+  /*
+  @formatter:off
+  type structField struct {
+    name        name    // name is always non-empty
+    typ         *rtype  // type of field
+    offsetEmbed uintptr // byte offset of field<<1 | isEmbedded
+  }
+  */
+  // private long[] setStructField(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+  //   flatapi.clearListing(a);
+  //   long[] ret = new long[2];
+  //   Data data = flatapi.createData(a, new PointerDataType());
+  //   ret[0] = ((Address) data.getValue()).getOffset();
+  //   a = a.add(pointerSize);
+  //   data = flatapi.createData(a, new LongDataType());
+  //   ret[1] = ((Scalar) data.getValue()).getValue();
+  //   return ret;
+  // }
+  // @formatter:on
+
+  /*
+  @formatter:off
+  type structType struct {
+    rtype
+    pkgPath name
+    fields  []structField // sorted by offset
+  }
+  @formatter:on
+  */
+  private long[] setStructType(Address a, FlatProgramAPI flatapi, int pointerSize) throws Exception {
+    flatapi.clearListing(a);
+    long[] ret = new long[2];
+    Data data = flatapi.createData(a, new PointerDataType());
+    ret[0] = ((Address) data.getValue()).getOffset();
+    a = a.add(pointerSize);
+    flatapi.clearListing(a);
+    data = flatapi.createData(a, new PointerDataType());
+    ret[1] = ((Address) data.getValue()).getOffset();
     return ret;
   }
   /*
