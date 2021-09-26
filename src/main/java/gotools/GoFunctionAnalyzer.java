@@ -1,5 +1,10 @@
 package gotools;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import ghidra.app.cmd.function.CreateFunctionCmd;
 import ghidra.app.services.AnalysisPriority;
 import ghidra.app.services.AnalyzerType;
@@ -18,6 +23,8 @@ import ghidra.program.model.data.LongDataType;
 import ghidra.program.model.data.PointerDataType;
 import ghidra.program.model.data.ShortDataType;
 import ghidra.program.model.data.StringDataType;
+import ghidra.program.model.data.StructureDataType;
+import ghidra.program.model.data.Undefined8DataType;
 import ghidra.program.model.data.UnsignedCharDataType;
 import ghidra.program.model.data.UnsignedIntegerDataType;
 import ghidra.program.model.data.UnsignedLongDataType;
@@ -25,7 +32,11 @@ import ghidra.program.model.data.UnsignedShortDataType;
 import ghidra.program.model.listing.CodeUnit;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.ParameterImpl;
 import ghidra.program.model.listing.Program;
+import ghidra.program.model.listing.Variable;
+import ghidra.program.model.listing.VariableStorage;
+import ghidra.program.model.listing.Function.FunctionUpdateType;
 import ghidra.program.model.mem.MemoryAccessException;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.scalar.Scalar;
@@ -40,6 +51,7 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
   private final String[] TYPE_KINDS = new String[] { "Invalid Kind", "Bool", "Int", "Int8", "Int16", "Int32", "Int64",
       "Uint", "Uint8", "Uint16", "Uint32", "Uint64", "Uintptr", "Float32", "Float64", "Complex64", "Complex128",
       "Array", "Chan", "Func", "Interface", "Map", "Ptr", "Slice", "String", "Struct", "UnsafePointer" };
+  private Map<Long, Long> funcmap = new HashMap<>();
 
   public GoFunctionAnalyzer() {
     super("Go Function Analyzer", "Recovers function names in go binaries.", AnalyzerType.BYTE_ANALYZER);
@@ -84,7 +96,7 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
       getInformation116(p, m, log, gopc, a, pointerSize);
     }
     try {
-      detectModuleData(p, m, log);
+      analyzeModuleData(p, m, log);
     } catch (Exception e) {
       log.appendException(e);
     }
@@ -135,6 +147,7 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
       }
       try {
         f.setName(functionName, SourceType.ANALYSIS);
+        funcmap.put(nameOffset, funcPointer.getOffset());
       } catch (DuplicateNameException | InvalidInputException e) {
         log.appendException(e);
         continue;
@@ -198,10 +211,12 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
         }
         continue;
       } else if (f.getName().equals(functionName)) {
+        funcmap.put((long) funcNameOffset, funcPointer.getOffset());
         continue;
       }
       try {
         f.setName(functionName, SourceType.ANALYSIS);
+        funcmap.put((long) funcNameOffset, funcPointer.getOffset());
       } catch (DuplicateNameException | InvalidInputException e) {
         log.appendException(e);
         continue;
@@ -209,8 +224,9 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
     }
   }
 
-  private void detectModuleData(Program p, TaskMonitor m, MessageLog log) {
+  private void analyzeModuleData(Program p, TaskMonitor m, MessageLog log) {
     // TODO only works for 64 bit binaries
+    log.appendMsg(funcmap.size() + " functions found");
     int pointerSize = 8;
     FlatProgramAPI flatapi = new FlatProgramAPI(p, m);
     try {
@@ -220,6 +236,7 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
           (byte) (l >> 40), (byte) (l >> 48), (byte) (l >> 56) };
       Address moduleData = flatapi.find(gopcln, b);
       int cnt = 0;
+      // avoid infinite loop
       while (moduleData.getOffset() != 0 && cnt < 100) {
         cnt += 1;
         try {
@@ -237,7 +254,8 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
               long[] resp = setRType(p, typeAddress, flatapi, pointerSize, log);
               int idx = (int) resp[0];
               typeAddress = flatapi.toAddr(resp[1]);
-              idx = idx & ((1 << 5) - 1);
+              long nameoff = resp[2];
+              idx = idx & ((1 << 5) - 1); // mask kind
               if (idx > 27) {
                 idx = 0;
               }
@@ -303,6 +321,27 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
                   short[] funcArgmentAndReturn = setFuncType(typeAddress, flatapi, pointerSize);
                   p.getListing().setComment(typeAddress, CodeUnit.EOL_COMMENT,
                       "in:" + funcArgmentAndReturn[0] + " out:" + funcArgmentAndReturn[1]);
+                  Long addr = funcmap.get(nameoff);
+                  if (addr == null) {
+                    log.appendMsg("Unable to find function for " + nameoff);
+                    break;
+                    // TODO: what should we do here?
+                  }
+                  Address funcAddr = flatapi.toAddr(funcmap.get(nameoff));
+                  Function f = p.getFunctionManager().getFunctionAt(funcAddr);
+                  StructureDataType s = new StructureDataType(String.format("ret_%d", f.getSymbol().getID()), 0);
+                  for (int c = 0; c < funcArgmentAndReturn[1]; c++) {
+                    s.add(new Undefined8DataType());
+                    // TODO: search argment type and set stackoffset/register belong to calling
+                    // convention
+                  }
+                  // The type is set to imported because otherwise we cannot overwrite it
+                  f.setReturn(s, new VariableStorage(p, 0, s.getLength()), SourceType.IMPORTED);
+                  List<Variable> args = new ArrayList<Variable>();
+                  for (int c = 0; c < funcArgmentAndReturn[0]; c++) {
+                    args.add(new ParameterImpl(String.format("arg_%d", c), new Undefined8DataType(), 0, p));
+                  }
+                  f.replaceParameters(args, FunctionUpdateType.CUSTOM_STORAGE, true, SourceType.IMPORTED);
                   break;
                 case "Interface":
                   setInterfaceType(typeAddress, flatapi, pointerSize);
@@ -659,13 +698,14 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
     a = a.add(pointerSize);
     // str
     flatapi.clearListing(a);
-    flatapi.createData(a, new IntegerDataType());
+    data = flatapi.createData(a, new IntegerDataType());
+    long nameoff = ((Scalar) data.getValue()).getValue();
     a = a.add(4);
     // ptrToThis
     flatapi.clearListing(a);
     flatapi.createData(a, new IntegerDataType());
     a = a.add(4);
-    return new long[] { kind, a.getOffset() };
+    return new long[] { kind, a.getOffset(), nameoff };
   }
 
   /*
@@ -982,7 +1022,7 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
     Address type = flatapi.toAddr(0);
     try {
       flatapi.clearListing(a);
-      data = flatapi.createData(a, new PointerDataType());
+      data = flatapi.createData(a, new UnsignedLongDataType());
       type = (Address) data.getValue();
     } catch (Exception e) {
       log.appendException(e);
