@@ -369,7 +369,7 @@ public class GoFunctionAnalyzer extends AnalyzerBase {
                   flatapi.createData(typeAddress, new PointerDataType());
                 default:
                   break;
-              }// TODO other types
+              }
 
             } catch (Exception e) {
               log.appendException(e);
