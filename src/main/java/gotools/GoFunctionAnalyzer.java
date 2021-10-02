@@ -1,8 +1,5 @@
 package gotools;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import ghidra.app.cmd.function.CreateFunctionCmd;
 import ghidra.app.services.AnalysisPriority;
 import ghidra.app.services.AnalyzerType;
@@ -25,8 +22,6 @@ import ghidra.util.exception.NotFoundException;
 import ghidra.util.task.TaskMonitor;
 
 public class GoFunctionAnalyzer extends GoTypesAnalyzer {
-
-  private Map<Long, Long> funcmap = new HashMap<>();
 
   public GoFunctionAnalyzer() {
     super("Go Function Analyzer", "Recovers function names in go binaries.", AnalyzerType.BYTE_ANALYZER);
@@ -93,34 +88,8 @@ public class GoFunctionAnalyzer extends GoTypesAnalyzer {
         continue;
       }
       Address funcPointer = p.getAddressFactory().getDefaultAddressSpace().getAddress(funcOffset);
-      Function f = p.getFunctionManager().getFunctionAt(funcPointer);
       String functionName = (String) (d.getValue());
-      if (functionName.startsWith("type..") || functionName.endsWith(".")) {
-        // TODO what to do with it?
-        p.getListing().setComment(funcPointer, CodeUnit.EOL_COMMENT, functionName);
-        continue;
-      }
-      if (gopc.contains(funcPointer)) {
-        log.appendMsg(String.format("skipped %s because it is in the section", functionName));
-        continue;
-      }
-      if (f == null) {
-        CreateFunctionCmd cmd = new CreateFunctionCmd(functionName, funcPointer, null, SourceType.ANALYSIS);
-        if (!cmd.applyTo(p, m)) {
-          log.appendMsg(
-              String.format("Unable to create function at %s, (expected %s)\n", d.getAddress(), d.getValue()));
-        }
-        continue;
-      } else if (f.getName().equals(functionName)) {
-        continue;
-      }
-      try {
-        f.setName(functionName, SourceType.ANALYSIS);
-        funcmap.put(nameOffset, funcPointer.getOffset());
-      } catch (DuplicateNameException | InvalidInputException e) {
-        log.appendException(e);
-        continue;
-      }
+      setFunctionName(p, m, log, gopc, funcPointer, functionName, d);
     }
   }
 
@@ -161,35 +130,38 @@ public class GoFunctionAnalyzer extends GoTypesAnalyzer {
         continue;
       }
       Address funcPointer = p.getAddressFactory().getDefaultAddressSpace().getAddress(funcEntryPoint);
-      Function f = p.getFunctionManager().getFunctionAt(funcPointer);
       String functionName = (String) (d.getValue());
-      if (functionName.startsWith("type..") || functionName.endsWith(".")) {
-        // TODO what to do with it?
-        p.getListing().setComment(funcPointer, CodeUnit.EOL_COMMENT, functionName);
-        continue;
+      setFunctionName(p, m, log, gopc, funcPointer, functionName, d);
+
+    }
+  }
+
+  private void setFunctionName(Program p, TaskMonitor m, MessageLog log, MemoryBlock gopc, Address funcPointer,
+      String functionName, Data d) {
+    Function f = p.getFunctionManager().getFunctionAt(funcPointer);
+    if (functionName.startsWith("type..") || functionName.endsWith(".")) {
+      // TODO what to do with it?
+      p.getListing().setComment(funcPointer, CodeUnit.EOL_COMMENT, functionName);
+      return;
+    }
+    if (gopc.contains(funcPointer)) {
+      log.appendMsg(String.format("skipped %s because it is in the section", functionName));
+      return;
+    }
+    if (f == null) {
+      CreateFunctionCmd cmd = new CreateFunctionCmd(functionName, funcPointer, null, SourceType.ANALYSIS);
+      if (!cmd.applyTo(p, m)) {
+        log.appendMsg(String.format("Unable to create function at %s, (expected %s)\n", d.getAddress(), d.getValue()));
       }
-      if (gopc.contains(funcPointer)) {
-        log.appendMsg(String.format("skipped %s because it is in the section", functionName));
-        continue;
-      }
-      if (f == null) {
-        CreateFunctionCmd cmd = new CreateFunctionCmd(functionName, funcPointer, null, SourceType.ANALYSIS);
-        if (!cmd.applyTo(p, m)) {
-          log.appendMsg(
-              String.format("Unable to create function at %s, (expected %s)\n", d.getAddress(), d.getValue()));
-        }
-        continue;
-      } else if (f.getName().equals(functionName)) {
-        funcmap.put((long) funcNameOffset, funcPointer.getOffset());
-        continue;
-      }
-      try {
-        f.setName(functionName, SourceType.ANALYSIS);
-        funcmap.put((long) funcNameOffset, funcPointer.getOffset());
-      } catch (DuplicateNameException | InvalidInputException e) {
-        log.appendException(e);
-        continue;
-      }
+      return;
+    } else if (f.getName().equals(functionName)) {
+      return;
+    }
+    try {
+      f.setName(functionName, SourceType.ANALYSIS);
+    } catch (DuplicateNameException | InvalidInputException e) {
+      log.appendException(e);
+      return;
     }
   }
 }

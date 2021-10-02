@@ -42,6 +42,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
       "Uint", "Uint8", "Uint16", "Uint32", "Uint64", "Uintptr", "Float32", "Float64", "Complex64", "Complex128",
       "Array", "Chan", "Func", "Interface", "Map", "Ptr", "Slice", "String", "Struct", "UnsafePointer" };
   private final CategoryPath goPath = new CategoryPath("/go");
+  private final CategoryPath rtypePath = new CategoryPath("/go/rtype");
 
   public GoTypesAnalyzer(String name, String description, AnalyzerType type) {
     super(name, description, type);
@@ -79,9 +80,9 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private void createRTypes(Program p) {
-    CategoryPath goPath = new CategoryPath("/go");
+
     DataTypeManager dtm = p.getDataTypeManager();
-    StructureDataType rtype = new StructureDataType(goPath, "Rtype", 0);
+    StructureDataType rtype = new StructureDataType(rtypePath, "Rtype", 0);
     rtype.add(new QWordDataType(), "size", null);
     rtype.add(new QWordDataType(), "ptrdata", null);
     rtype.add(new QWordDataType(), "hash", null);
@@ -96,11 +97,11 @@ public class GoTypesAnalyzer extends AnalyzerBase {
 
     dtm.addDataType(rtype, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType bitvector = new StructureDataType(goPath, "bitvector", 0);
+    StructureDataType bitvector = new StructureDataType(rtypePath, "Bitvector", 0);
     bitvector.add(new QWordDataType(), "n", null);
     bitvector.add(new PointerDataType(), "bytedata", null);
 
-    StructureDataType moduledata = new StructureDataType(goPath, "moduledata", 0);
+    StructureDataType moduledata = new StructureDataType(rtypePath, "Moduledata", 0);
     moduledata.add(new PointerDataType(), "pcHeader", null);
     moduledata.add(dtm.getDataType(goPath, "Slice"), "funcnametab", null);
     moduledata.add(dtm.getDataType(goPath, "Slice"), "cutab", null);
@@ -143,38 +144,38 @@ public class GoTypesAnalyzer extends AnalyzerBase {
 
     dtm.addDataType(moduledata, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType arr = new StructureDataType("RArray", 0);
+    StructureDataType arr = new StructureDataType(rtypePath, "Array", 0);
     arr.add(new PointerDataType(), 8, "elem", "array element type");
     arr.add(new PointerDataType(), 8, "slice", null);
     arr.add(new QWordDataType(), "len", null);
 
     dtm.addDataType(arr, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType chan = new StructureDataType("RChan", 0);
+    StructureDataType chan = new StructureDataType(rtypePath, "Chan", 0);
     chan.add(new PointerDataType(), "elem", "channel element type");
     chan.add(new QWordDataType(), "dir", "channel direction");
 
     dtm.addDataType(chan, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType func = new StructureDataType("RFunc", 0);
+    StructureDataType func = new StructureDataType(rtypePath, "Func", 0);
     func.add(new UnsignedShortDataType(), "in", "function argment number");
     func.add(new QWordDataType(), "out", "function return number");
 
     dtm.addDataType(func, DataTypeConflictHandler.KEEP_HANDLER);
-    // internal type, there is no rtype before this type
-    StructureDataType imethod = new StructureDataType("RInterfaceMethod", 0);
+
+    StructureDataType imethod = new StructureDataType(rtypePath, "InterfaceMethod", 0);
     imethod.add(new QWordDataType(), "nameOff", "name of method");
     imethod.add(new QWordDataType(), "typeOff", ".(*FuncType) underneath");
 
     dtm.addDataType(imethod, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType iface = new StructureDataType("RInterface", 0);
+    StructureDataType iface = new StructureDataType(rtypePath, "Interface", 0);
     iface.add(new QWordDataType(), "pkgPath", "import path");
     iface.add(dtm.getDataType(goPath, "Slice"), "methods", "interface data");
 
     dtm.addDataType(iface, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType map = new StructureDataType("RMap", 0);
+    StructureDataType map = new StructureDataType(rtypePath, "Map", 0);
     map.add(new PointerDataType(), "key", "map key type");
     map.add(new PointerDataType(), "elem", "map element type");
     map.add(new PointerDataType(), "buckets", "hash function");
@@ -185,25 +186,25 @@ public class GoTypesAnalyzer extends AnalyzerBase {
 
     dtm.addDataType(map, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType ptr = new StructureDataType("RPtr", 0);
+    StructureDataType ptr = new StructureDataType(rtypePath, "Ptr", 0);
     ptr.add(new PointerDataType(), "elem", "pointer type");
 
     dtm.addDataType(ptr, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType slice = new StructureDataType("RSlice", 0);
+    StructureDataType slice = new StructureDataType(rtypePath, "Slice", 0);
     slice.add(new PointerDataType(), "data", "slice data");
     slice.add(new QWordDataType(), "elem", "slice element type");
 
     dtm.addDataType(slice, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType structfield = new StructureDataType("GoRStructField", 0);
+    StructureDataType structfield = new StructureDataType(rtypePath, "StructField", 0);
     structfield.add(new PointerDataType(), "name", "name of field");
     structfield.add(new PointerDataType(), "typ", "type of field");
     structfield.add(new QWordDataType(), "offset", "offset of field");
 
     dtm.addDataType(structfield, DataTypeConflictHandler.KEEP_HANDLER);
 
-    StructureDataType struct = new StructureDataType("GoRStruct", 0);
+    StructureDataType struct = new StructureDataType(rtypePath, "Struct", 0);
     struct.add(new PointerDataType(), "name", "name of struct");
     struct.add(dtm.getDataType(goPath, "Slice"), "fields", "sorted by offset");
 
@@ -236,7 +237,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
                   .getAddress(typeBase.getOffset() + offset);
               Map<String, Data> rtype = setRType(p, typeAddress);
               int idx = (int) rtype.get("kind").getValue();
-              typeAddress = typeAddress.add(p.getDataTypeManager().getDataType(goPath, "RType").getLength());
+              typeAddress = typeAddress.add(p.getDataTypeManager().getDataType(rtypePath, "RType").getLength());
               idx = idx & ((1 << 5) - 1); // mask kind
               if (idx > 27) {
                 idx = 0;
@@ -344,7 +345,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRArrayType(Program p, Address a) throws Exception {
-    DataType arrayType = p.getDataTypeManager().getDataType(goPath, "RArray");
+    DataType arrayType = p.getDataTypeManager().getDataType(rtypePath, "Array");
     p.getListing().clearCodeUnits(a, a.add(arrayType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, arrayType);
@@ -355,7 +356,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRChanType(Program p, Address a) throws Exception {
-    DataType chanType = p.getDataTypeManager().getDataType(goPath, "RChan");
+    DataType chanType = p.getDataTypeManager().getDataType(rtypePath, "Chan");
     p.getListing().clearCodeUnits(a, a.add(chanType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, chanType);
@@ -365,7 +366,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRFuncType(Program p, Address a) throws Exception {
-    DataType funcType = p.getDataTypeManager().getDataType(goPath, "RFunc");
+    DataType funcType = p.getDataTypeManager().getDataType(rtypePath, "Func");
     p.getListing().clearCodeUnits(a, a.add(funcType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, funcType);
@@ -375,7 +376,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRInterfaceType(Program p, Address a) throws Exception {
-    DataType interfaceType = p.getDataTypeManager().getDataType(goPath, "RInterface");
+    DataType interfaceType = p.getDataTypeManager().getDataType(rtypePath, "Interface");
     p.getListing().clearCodeUnits(a, a.add(interfaceType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, interfaceType);
@@ -385,7 +386,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRMapType(Program p, Address a) throws Exception {
-    DataType mapType = p.getDataTypeManager().getDataType(goPath, "RMap");
+    DataType mapType = p.getDataTypeManager().getDataType(rtypePath, "Map");
     p.getListing().clearCodeUnits(a, a.add(mapType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, mapType);
@@ -401,7 +402,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRPtrType(Program p, Address a) throws Exception {
-    DataType ptrType = p.getDataTypeManager().getDataType(goPath, "RPtr");
+    DataType ptrType = p.getDataTypeManager().getDataType(rtypePath, "Ptr");
     p.getListing().clearCodeUnits(a, a.add(ptrType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, ptrType);
@@ -410,7 +411,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRSliceType(Program p, Address a) throws Exception {
-    DataType sliceType = p.getDataTypeManager().getDataType(goPath, "RSlice");
+    DataType sliceType = p.getDataTypeManager().getDataType(rtypePath, "Slice");
     p.getListing().clearCodeUnits(a, a.add(sliceType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, sliceType);
@@ -419,7 +420,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRStructType(Program p, Address a) throws Exception {
-    DataType structType = p.getDataTypeManager().getDataType(goPath, "RStruct");
+    DataType structType = p.getDataTypeManager().getDataType(rtypePath, "Struct");
     p.getListing().clearCodeUnits(a, a.add(structType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, structType);
@@ -429,7 +430,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setRType(Program p, Address a) throws Exception {
-    DataType rType = p.getDataTypeManager().getDataType(goPath, "RType");
+    DataType rType = p.getDataTypeManager().getDataType(rtypePath, "Rtype");
     p.getListing().clearCodeUnits(a, a.add(rType.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, rType);
@@ -448,7 +449,7 @@ public class GoTypesAnalyzer extends AnalyzerBase {
   }
 
   private Map<String, Data> setModuleData(Program p, Address a) throws Exception {
-    DataType moduleData = p.getDataTypeManager().getDataType(goPath, "RModule");
+    DataType moduleData = p.getDataTypeManager().getDataType(rtypePath, "Moduledata");
     p.getListing().clearCodeUnits(a, a.add(moduleData.getLength()), true);
     Map<String, Data> ret = new HashMap<>();
     Data d = p.getListing().createData(a, moduleData);
